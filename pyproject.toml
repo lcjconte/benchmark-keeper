@@ -1,0 +1,30 @@
+[project]
+name = "benchmark-keeper"
+version = "0.1.0"
+description = "Simple tracking of benchmark results across git commits"
+authors = [
+    {name = "Leandro Conte",email = "me@lcjconte.com"}
+]
+license = "MIT"
+readme = "README.md"
+requires-python = ">=3.10"
+
+[tool.poetry.scripts]
+# Entry points for the package https://python-poetry.org/docs/pyproject/#scripts
+"benchmark-keeper" = "benchmark_keeper.__main__:app"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+
+typer = {extras = ["all"], version = "^0.15.3"}
+rich = "^10.14.0"
+pydantic = "^2.11.5"
+pyyaml = "^6.0.2"
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.requires-plugins]
+poetry-plugin-export = ">=1.8"
+
