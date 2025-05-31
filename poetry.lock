@@ -13,22 +13,6 @@ files = [
 ]
 
 [[package]]
-name = "asttokens"
-version = "3.0.0"
-description = "Annotate AST trees with source code positions"
-optional = false
-python-versions = ">=3.8"
-groups = ["main"]
-files = [
-    {file = "asttokens-3.0.0-py3-none-any.whl", hash = "sha256:e3078351a059199dd5138cb1c706e6430c05eff2ff136af5eb4790f9d28932e2"},
-    {file = "asttokens-3.0.0.tar.gz", hash = "sha256:0dcd8baa8d62b0c1d118b399b2ddba3c4aff271d0d7a9e0d4c1681c79035bbc7"},
-]
-
-[package.extras]
-astroid = ["astroid (>=2,<4)"]
-test = ["astroid (>=2,<4)", "pytest", "pytest-cov", "pytest-xdist"]
-
-[[package]]
 name = "click"
 version = "8.1.8"
 description = "Composable command line interface toolkit"
@@ -69,39 +53,6 @@ files = [
 
 [package.extras]
 test = ["flake8 (==3.7.8)", "hypothesis (==3.55.3)"]
-
-[[package]]
-name = "executing"
-version = "2.2.0"
-description = "Get the currently executing AST node of a frame, and other information"
-optional = false
-python-versions = ">=3.8"
-groups = ["main"]
-files = [
-    {file = "executing-2.2.0-py2.py3-none-any.whl", hash = "sha256:11387150cad388d62750327a53d3339fad4888b39a6fe233c3afbb54ecffd3aa"},
-    {file = "executing-2.2.0.tar.gz", hash = "sha256:5d108c028108fe2551d1a7b2e8b713341e2cb4fc0aa7dcf966fa4327a5226755"},
-]
-
-[package.extras]
-tests = ["asttokens (>=2.1.0)", "coverage", "coverage-enable-subprocess", "ipython", "littleutils", "pytest", "rich ; python_version >= \"3.11\""]
-
-[[package]]
-name = "icecream"
-version = "2.1.4"
-description = "Never use print() to debug again; inspect variables, expressions, and program execution with a single, simple function call."
-optional = false
-python-versions = "*"
-groups = ["main"]
-files = [
-    {file = "icecream-2.1.4-py3-none-any.whl", hash = "sha256:7bb715f69102cae871b3a361c3b656536db02cfcadac9664c673581cac4df4fd"},
-    {file = "icecream-2.1.4.tar.gz", hash = "sha256:58755e58397d5350a76f25976dee7b607f5febb3c6e1cddfe6b1951896e91573"},
-]
-
-[package.dependencies]
-asttokens = ">=2.0.1"
-colorama = ">=0.3.9"
-executing = ">=2.1.0"
-pygments = ">=2.2.0"
 
 [[package]]
 name = "pydantic"
@@ -395,4 +346,4 @@ typing-extensions = ">=4.12.0"
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.10"
-content-hash = "55a6575a64aea2d3c5d7cd19c6b511b56e1d3da585526aa34f02e33bd1d68e25"
+content-hash = "7b62ddd6a14adb5274a0c6693bd2118daa331d30e606938970266a35e12d1cf4"

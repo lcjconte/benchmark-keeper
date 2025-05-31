@@ -16,6 +16,8 @@ from enum import Enum
 LOCAL_DIR = ".benchk.local"
 TRACKED_DIR = ".benchk"
 REPORT_FILE = "report.yml"
+LOCAL_CONFIG = "local_config.yml"
+REPO_CONFIG = "repo_config.yml"
 
 if sys.version_info >= (3, 8):
     from importlib import metadata as importlib_metadata
@@ -102,7 +104,7 @@ def ensure_local_dir_ignored():
 def write_local_config(config: LocalConfig):
     dir_path = get_path().joinpath(LOCAL_DIR)
     dir_path.touch()
-    with open(dir_path.joinpath("config.yml"), "w") as f:
+    with open(dir_path.joinpath(LOCAL_CONFIG), "w") as f:
         yaml.dump(config.model_dump(), f)
     if _config is not None:
         _config.local_config = config
@@ -110,7 +112,7 @@ def write_local_config(config: LocalConfig):
 def write_repo_config(config: RepoConfig):
     dir_path = get_path().joinpath(TRACKED_DIR)
     dir_path.touch()
-    with open(dir_path.joinpath("config.yml"), "w") as f:
+    with open(dir_path.joinpath(REPO_CONFIG), "w") as f:
         yaml.dump(config.model_dump(), f)
     if _config is not None:
         _config.repo_config = config
@@ -122,20 +124,30 @@ def get_config() -> AppConfig:
     if _config is None:
         path = get_path()
 
-        local_config_path = path.joinpath(LOCAL_DIR, "config.yml")
-        path.joinpath(LOCAL_DIR).mkdir(exist_ok=True)
+        local_config_path = path.joinpath(LOCAL_DIR, LOCAL_CONFIG)
+        if not path.joinpath(LOCAL_DIR).exists():
+            path.joinpath(LOCAL_DIR).mkdir()
+            # Create gitignore to ignore LOCAL_DIR
+            with open(path.joinpath(LOCAL_DIR, ".gitignore"), "w") as f:
+                f.write("*")
         if not local_config_path.exists():
             write_local_config(default_local_config)
         with open(local_config_path, "r") as f:
             local_config = LocalConfig(**yaml.safe_load(f)) 
 
-        repo_config_path = path.joinpath(TRACKED_DIR, "config.yml")
+        repo_config_path = path.joinpath(TRACKED_DIR, REPO_CONFIG)
         path.joinpath(TRACKED_DIR).mkdir(exist_ok=True)
         if not repo_config_path.exists():
             write_repo_config(default_repo_config)
         with open(repo_config_path, "r") as f:
             repo_config = RepoConfig(**yaml.safe_load(f))
         _config = AppConfig(path, local_config, repo_config)
+
+    if _config.local_config.active_experiment is None and repo_config.experiments:
+        console.print(f"No active experiment set. Using \"{repo_config.experiments[0].name}\"")
+        _config.local_config.active_experiment = repo_config.experiments[0].name
+        write_local_config(_config.local_config)
+
     return _config
 
 class ScriptDelimiter(object):
@@ -145,13 +157,11 @@ class ScriptDelimiter(object):
     def __enter__(self):
         console.print(f"[{Color.yellow}]--- Running {self.script_name}")
     def __exit__(self, type, value, traceback):
-        console.print(f"[{Color.yellow}]---")
+        console.print(f"[{Color.yellow}]--- Done")
 
 class BenchmarkRunOutput(BaseModel):
+    tag: str
     version: str
     machine: str
     benchmarks: Mapping[str, Mapping[str, Any]]
 
-def write_report(report: BenchmarkRunOutput):
-    with open(get_path().joinpath(TRACKED_DIR, REPORT_FILE), "w") as f:
-        yaml.safe_dump(report.model_dump(), f)

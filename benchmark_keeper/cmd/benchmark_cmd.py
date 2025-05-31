@@ -4,9 +4,13 @@ from typing import Any, Optional
 from pydantic import ValidationError
 import typer
 import json
+from uuid import uuid4
 
 from benchmark_keeper import (AppConfig, Color, Experiment, ScriptDelimiter,
-                               app, console, get_config, get_path, BenchmarkRunOutput, write_report)
+                               app, console, get_config, get_path, BenchmarkRunOutput)
+
+from benchmark_keeper.git import commit_report
+from benchmark_keeper.report import write_report
 
 
 def run_build(experiment: Experiment):
@@ -50,7 +54,7 @@ def benchmark(
         "-d",
         "--dry",
         help="If true benchmarks will be skipped"
-    )
+    ),
 ) -> None:
     """Runs and optionally commits benchmarks"""
 
@@ -74,6 +78,7 @@ def benchmark(
 
     try:
         run_output = BenchmarkRunOutput(
+            tag=uuid4().hex,
             version=experiment.version,
             machine=config.local_config.machine_name,
             benchmarks=b_result
@@ -83,3 +88,5 @@ def benchmark(
         console.print(f"Benchmark script output badly formatted")
         raise e
     
+    if message:
+        commit_report(message)
