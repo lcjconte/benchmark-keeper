@@ -1,6 +1,6 @@
 [project]
 name = "benchmark-keeper"
-version = "0.1.0"
+version = "0.1.1"
 description = "Simple tracking of benchmark results across git commits"
 authors = [
     {name = "Leandro Conte",email = "me@lcjconte.com"}
