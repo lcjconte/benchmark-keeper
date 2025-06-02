@@ -41,6 +41,7 @@ app = typer.Typer(
 )
 console = Console()
 
+
 class Color(str, Enum):
     white = "white"
     red = "red"
@@ -54,22 +55,24 @@ class LocalConfig(BaseModel):
     machine_name: str
     active_experiment: str | None
 
-default_local_config = LocalConfig(
-    machine_name="MyMachine",
-    active_experiment=None
-)
+
+default_local_config = LocalConfig(machine_name="MyMachine", active_experiment=None)
+
 
 class Experiment(BaseModel):
-    name: str = "1.0.0"
-    version: str = "1.0.0"
+    name: str
+    version: int = 1
     build_script: str | None = None
     test_script: str | None = None
     benchmark_script: str
 
+
 class RepoConfig(BaseModel):
     experiments: List[Experiment]
 
+
 default_repo_config = RepoConfig(experiments=[])
+
 
 @dataclass
 class AppConfig:
@@ -79,26 +82,30 @@ class AppConfig:
 
     @property
     def active_experiment(self) -> Optional[Experiment]:
-        return next(filter(lambda x: x.name == self.local_config.active_experiment, self.repo_config.experiments), None)
+        return next(
+            filter(
+                lambda x: x.name == self.local_config.active_experiment,
+                self.repo_config.experiments,
+            ),
+            None,
+        )
 
-def init_app(root_directory):
-    pass
 
 _root_path: pathlib.Path | None = None
+
 
 def get_path():
     global _root_path
     if _root_path is None:
-        proc = subprocess.run("git rev-parse --show-toplevel", shell=True, check=True, capture_output=True, text=True)
+        proc = subprocess.run(
+            "git rev-parse --show-toplevel",
+            shell=True,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
         _root_path = pathlib.Path(proc.stdout.strip())
     return _root_path
-
-def ensure_local_dir_ignored():
-    path = get_path()
-    if subprocess.run(f"git check-ignore {path.joinpath(LOCAL_DIR)}", shell=True).returncode == 0:
-        return
-    console.print(f"[{Color.red}] Add {LOCAL_DIR} to .gitignore")
-
 
 
 def write_local_config(config: LocalConfig):
@@ -109,6 +116,7 @@ def write_local_config(config: LocalConfig):
     if _config is not None:
         _config.local_config = config
 
+
 def write_repo_config(config: RepoConfig):
     dir_path = get_path().joinpath(TRACKED_DIR)
     dir_path.touch()
@@ -117,7 +125,9 @@ def write_repo_config(config: RepoConfig):
     if _config is not None:
         _config.repo_config = config
 
+
 _config: AppConfig | None = None
+
 
 def get_config() -> AppConfig:
     global _config
@@ -133,7 +143,7 @@ def get_config() -> AppConfig:
         if not local_config_path.exists():
             write_local_config(default_local_config)
         with open(local_config_path, "r") as f:
-            local_config = LocalConfig(**yaml.safe_load(f)) 
+            local_config = LocalConfig(**yaml.safe_load(f))
 
         repo_config_path = path.joinpath(TRACKED_DIR, REPO_CONFIG)
         path.joinpath(TRACKED_DIR).mkdir(exist_ok=True)
@@ -144,24 +154,42 @@ def get_config() -> AppConfig:
         _config = AppConfig(path, local_config, repo_config)
 
     if _config.local_config.active_experiment is None and repo_config.experiments:
-        console.print(f"No active experiment set. Using \"{repo_config.experiments[0].name}\"")
+        console.print(
+            f'No active experiment set. Using "{repo_config.experiments[0].name}"'
+        )
         _config.local_config.active_experiment = repo_config.experiments[0].name
         write_local_config(_config.local_config)
 
     return _config
 
-class ScriptDelimiter(object):
-    """Delimits output of script on console"""
-    def __init__(self, script_name) -> None:
-        self.script_name = script_name
-    def __enter__(self):
-        console.print(f"[{Color.yellow}]--- Running {self.script_name}")
-    def __exit__(self, type, value, traceback):
-        console.print(f"[{Color.yellow}]--- Done")
 
-class BenchmarkRunOutput(BaseModel):
+class BenchmarkResult(BaseModel):
+    """
+    The result of one benchmark. target is (for now) measured in ns.
+    """
+
+    target: float
+    labels: List[str] = []
+    unstructured: Mapping[str, Any] = {}
+
+
+class BenchmarkRun(BaseModel):
+    """
+    Contains results of multiple benchmarks within one (experiment,version).
+    The tag uniquely identifies this run.
+    """
+
     tag: str
-    version: str
+    experiment: str
+    experiment_version: int
     machine: str
-    benchmarks: Mapping[str, Mapping[str, Any]]
+    benchmarks: Mapping[str, BenchmarkResult]
 
+
+class Report(BaseModel):
+    """
+    Persisted runs across different experiments/versions.
+    Should contain, for every (experiment, experiment_version) pair at most one run.
+    """
+
+    runs: List[BenchmarkRun]

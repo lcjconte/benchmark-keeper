@@ -1,1 +1,2 @@
 - Detailed comparison of runs
+- Better error messages (Catch MessageError)

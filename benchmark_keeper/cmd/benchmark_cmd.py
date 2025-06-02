@@ -1,16 +1,26 @@
 import subprocess
-from typing import Any, Optional
+from typing import Any, Optional, Mapping
 
-from pydantic import ValidationError
+from pydantic import ValidationError, TypeAdapter
 import typer
 import json
 from uuid import uuid4
 
-from benchmark_keeper import (AppConfig, Color, Experiment, ScriptDelimiter,
-                               app, console, get_config, get_path, BenchmarkRunOutput)
+from benchmark_keeper import (
+    AppConfig,
+    Color,
+    Experiment,
+    app,
+    console,
+    get_config,
+    get_path,
+    BenchmarkRun,
+    BenchmarkResult,
+)
 
+from benchmark_keeper.formatting import ScriptDelimiter
 from benchmark_keeper.git import commit_report
-from benchmark_keeper.report import write_report
+from benchmark_keeper.report import add_run
 
 
 def run_build(experiment: Experiment):
@@ -22,6 +32,7 @@ def run_build(experiment: Experiment):
         if r != 0:
             raise RuntimeError("Build failed")
 
+
 def run_tests(experiment: Experiment):
     if (script := experiment.test_script) is None:
         console.print("No test script found. Skipping.")
@@ -30,30 +41,30 @@ def run_tests(experiment: Experiment):
             r = subprocess.call([script])
         if r != 0:
             raise RuntimeError("Tests Failed")
-        
-def run_benchmarks(experiment: Experiment) -> Any:
-    proc = subprocess.Popen([get_path().joinpath(experiment.benchmark_script)], stdout=subprocess.PIPE, text=True)
+
+
+def run_benchmarks(experiment: Experiment) -> Mapping[str, BenchmarkResult]:
+    proc = subprocess.Popen(
+        [get_path().joinpath(experiment.benchmark_script)],
+        stdout=subprocess.PIPE,
+        text=True,
+    )
     with ScriptDelimiter(experiment.benchmark_script):
         out = proc.communicate()[0]
     if out == "":
         console.print("Benchmark returned nothing")
         typer.Exit(1)
-    return json.loads(out)
-    
+
+    return TypeAdapter(Mapping[str, BenchmarkResult]).validate_python(json.loads(out))
+
 
 @app.command(name="benchmark")
 def benchmark(
     message: Optional[str] = typer.Option(
-        None,
-        "-m",
-        "--message",
-        help="Commit benchmark results with message"
+        None, "-m", "--message", help="Commit benchmark results with message"
     ),
     dry: bool = typer.Option(
-        False,
-        "-d",
-        "--dry",
-        help="If true benchmarks will be skipped"
+        False, "-d", "--dry", help="If true benchmarks will be skipped"
     ),
 ) -> None:
     """Runs and optionally commits benchmarks"""
@@ -63,8 +74,8 @@ def benchmark(
     if (experiment := config.active_experiment) is None:
         console.print(f"No active experiment found.")
         raise typer.Exit(1)
-    
-    console.print(f"Running benchmarks for \"{experiment.name}\"")
+
+    console.print(f'Running benchmarks for "{experiment.name}"')
 
     run_build(experiment)
 
@@ -73,20 +84,21 @@ def benchmark(
     if dry:
         console.print("Skipping benchmarks (due to -d)")
         raise typer.Exit()
-    
+
     b_result = run_benchmarks(experiment)
 
     try:
-        run_output = BenchmarkRunOutput(
+        run_output = BenchmarkRun(
             tag=uuid4().hex,
-            version=experiment.version,
+            experiment=experiment.name,
+            experiment_version=experiment.version,
             machine=config.local_config.machine_name,
-            benchmarks=b_result
+            benchmarks=b_result,
         )
-        write_report(run_output)
+        add_run(run_output)
     except ValidationError as e:
         console.print(f"Benchmark script output badly formatted")
-        raise e
-    
+        raise typer.Exit(1)
+
     if message:
         commit_report(message)

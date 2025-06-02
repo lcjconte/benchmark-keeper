@@ -5,10 +5,10 @@ from typing import Any, List, Mapping, Tuple
 import typer
 from pydantic.dataclasses import dataclass
 
-from benchmark_keeper import (REPORT_FILE, TRACKED_DIR, BenchmarkRunOutput,
+from benchmark_keeper import (REPORT_FILE, TRACKED_DIR, BenchmarkRun,
                               app, console, get_config, Color)
-from benchmark_keeper.report import get_commit_data, get_current_data
-from benchmark_keeper.aggregator import aggregator_presets
+from benchmark_keeper.report import get_commit_run, get_current_run
+from benchmark_keeper.aggregator import aggregator_presets, DEFAULT_AGGREGATOR
 
 fail_counter = 0
 
@@ -31,7 +31,7 @@ def get_commits() -> List[Tuple[str, str]]:
 class CommitData:
     commit_hash: str
     subject: str
-    data: BenchmarkRunOutput
+    data: BenchmarkRun
 
 @dataclass
 class AnnotatedCommitData:
@@ -70,18 +70,22 @@ def list_cmd(
 
     config = get_config()
 
+    experiment = config.active_experiment
+    if experiment is None:
+        raise RuntimeError("Experiment missing")
+
     console.print(f"Comparing results for machine: {config.local_config.machine_name}\n")
 
     commit_data: List[CommitData] = []
     for commit in get_commits():
-        res = get_commit_data(commit[0])
-        if isinstance(res, BenchmarkRunOutput):
+        res = get_commit_run(commit[0], experiment.name, experiment.version)
+        if isinstance(res, BenchmarkRun):
             commit_data.append(CommitData(commit_hash=commit[0], subject=commit[1], data=res))
         # Ignore failures for now
     
-    current_data = get_current_data()
+    current_data = get_current_run(experiment.name, experiment.version)
     current_tag = ""
-    if isinstance(current_data, BenchmarkRunOutput):
+    if isinstance(current_data, BenchmarkRun):
         commit_data.insert(0, CommitData(commit_hash="0"*40, subject="Current", data=current_data))
         current_tag = current_data.tag
 
@@ -94,7 +98,7 @@ def list_cmd(
     ]
 
     # Get aggregator
-    _agg = aggregator_presets[aggregator](metric="time")
+    _agg = aggregator_presets[aggregator if aggregator else DEFAULT_AGGREGATOR]()
     aggregated = _agg.aggregate([cd.data.benchmarks for cd in commit_data])
 
     annotated_data: List[AnnotatedCommitData] = []
@@ -105,7 +109,21 @@ def list_cmd(
         annotated_data.sort(key=lambda x: x.score, reverse=_agg.lower_is_better())
 
     if limit is not None:
+        current_annotated_run = None
+        for an in annotated_data:
+            if an.data.data.tag == current_tag:
+                current_annotated_run = an
+                break
+
         annotated_data = annotated_data[-limit:]
+
+        # Include current run regardless of limit
+        if current_annotated_run is not None and current_annotated_run not in annotated_data:
+            annotated_data.insert(0, current_annotated_run)
+    
+    if not annotated_data:
+        console.print(f"No results found for experiment {experiment.name} on machine {config.local_config.machine_name}")
+        raise typer.Exit(0)
 
     for i, cd in enumerate(annotated_data):
         best_str = f" [{Color.yellow}](best)[/{Color.yellow}]" if i == len(annotated_data)-1 else ""
