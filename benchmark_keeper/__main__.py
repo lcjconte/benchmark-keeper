@@ -1,21 +1,23 @@
-# type: ignore[attr-defined]
-from typing import Optional
-
-from enum import Enum
-from random import choice
-
-import typer
-from rich.console import Console
-
-from benchmark_keeper import version, app, console, Color
+"""Entry point"""
 
 import benchmark_keeper.cmd
+from benchmark_keeper import app, TRACKED_DIR, get_path
+import importlib.util
+import sys
 
-def version_callback(print_version: bool) -> None:
-    """Print the version of the package."""
-    if print_version:
-        console.print(f"[yellow]benchmark-keeper[/] version: [bold blue]{version}[/]")
-        raise typer.Exit()
 
-if __name__ == "__main__":
+def main():
+    # Import custom code
+
+    custom_code_path = get_path().joinpath(TRACKED_DIR, "custom.py")
+    if custom_code_path.exists():
+        try:
+            sys.dont_write_bytecode = True
+            spec = importlib.util.spec_from_file_location("custom", custom_code_path)
+            foo = importlib.util.module_from_spec(spec)  # type: ignore
+            spec.loader.exec_module(foo)  # type: ignore
+        except Exception as e:
+            raise RuntimeError("Error loading custom code")
+
+    # Run app
     app()

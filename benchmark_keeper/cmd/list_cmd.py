@@ -5,8 +5,7 @@ from typing import Any, List, Mapping, Tuple
 import typer
 from pydantic.dataclasses import dataclass
 
-from benchmark_keeper import (REPORT_FILE, TRACKED_DIR, BenchmarkRun,
-                              app, console, get_config, Color)
+from benchmark_keeper import BenchmarkRun, app, console, get_config, Color
 from benchmark_keeper.report import get_commit_run, get_current_run
 from benchmark_keeper.aggregator import aggregator_presets, DEFAULT_AGGREGATOR
 
@@ -27,20 +26,25 @@ def get_commits() -> List[Tuple[str, str]]:
         )
     )
 
+
 @dataclass
 class CommitData:
     commit_hash: str
     subject: str
     data: BenchmarkRun
 
+
 @dataclass
 class AnnotatedCommitData:
     data: CommitData
     score: float
 
+
 def reducer(benchmark_results: Mapping[str, Mapping[str, Any]], metric: str) -> float:
-    return sum(result[metric] for bench, result in benchmark_results.items()) / len(benchmark_results)
-            
+    return sum(result[metric] for bench, result in benchmark_results.items()) / len(
+        benchmark_results
+    )
+
 
 @app.command(name="list")
 def list_cmd(
@@ -74,27 +78,39 @@ def list_cmd(
     if experiment is None:
         raise RuntimeError("Experiment missing")
 
-    console.print(f"Comparing results for machine: {config.local_config.machine_name}\n")
+    console.print(
+        f"Comparing results for machine: {config.local_config.machine_name}\n"
+    )
 
     commit_data: List[CommitData] = []
     for commit in get_commits():
         res = get_commit_run(commit[0], experiment.name, experiment.version)
         if isinstance(res, BenchmarkRun):
-            commit_data.append(CommitData(commit_hash=commit[0], subject=commit[1], data=res))
+            commit_data.append(
+                CommitData(commit_hash=commit[0], subject=commit[1], data=res)
+            )
         # Ignore failures for now
-    
+
     current_data = get_current_run(experiment.name, experiment.version)
     current_tag = ""
     if isinstance(current_data, BenchmarkRun):
-        commit_data.insert(0, CommitData(commit_hash="0"*40, subject="Current", data=current_data))
+        commit_data.insert(
+            0, CommitData(commit_hash="0" * 40, subject="Current", data=current_data)
+        )
         current_tag = current_data.tag
 
     # Commit data is sorted by commit order
     # Remove duplicate tags
     seen = set()
-    
+
     commit_data = [
-        cd for cd in commit_data[::-1] if (cd.data.machine == config.local_config.machine_name and cd.data.tag not in seen and not seen.add(cd.data.tag))
+        cd
+        for cd in commit_data[::-1]
+        if (
+            cd.data.machine == config.local_config.machine_name
+            and cd.data.tag not in seen
+            and not seen.add(cd.data.tag)
+        )
     ]
 
     # Get aggregator
@@ -118,14 +134,29 @@ def list_cmd(
         annotated_data = annotated_data[-limit:]
 
         # Include current run regardless of limit
-        if current_annotated_run is not None and current_annotated_run not in annotated_data:
+        if (
+            current_annotated_run is not None
+            and current_annotated_run not in annotated_data
+        ):
             annotated_data.insert(0, current_annotated_run)
-    
+
     if not annotated_data:
-        console.print(f"No results found for experiment {experiment.name} on machine {config.local_config.machine_name}")
+        console.print(
+            f"No results found for experiment {experiment.name} on machine {config.local_config.machine_name}"
+        )
         raise typer.Exit(0)
 
     for i, cd in enumerate(annotated_data):
-        best_str = f" [{Color.yellow}](best)[/{Color.yellow}]" if i == len(annotated_data)-1 else ""
-        current_str = f" [{Color.yellow}](current)[/{Color.yellow}]" if cd.data.data.tag == current_tag else ""
-        console.print(f"{cd.score:012.2f} \[{_agg.unit()}], {cd.data.commit_hash[:10]}, {cd.data.subject}{best_str}{current_str}")
+        best_str = (
+            f" [{Color.yellow}](best)[/{Color.yellow}]"
+            if i == len(annotated_data) - 1
+            else ""
+        )
+        current_str = (
+            f" [{Color.yellow}](current)[/{Color.yellow}]"
+            if cd.data.data.tag == current_tag
+            else ""
+        )
+        console.print(
+            f"{cd.score:012.2f} \[{_agg.unit()}], {cd.data.commit_hash[:10]}, {cd.data.subject}{best_str}{current_str}"
+        )

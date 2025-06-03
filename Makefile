@@ -12,3 +12,7 @@ install:
 .PHONY: build-remove
 build-remove:
 	rm -rf build/
+
+.PHONY: format
+format:
+	poetry run black benchmark_keeper

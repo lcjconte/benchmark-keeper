@@ -1,2 +1,2 @@
 - Detailed comparison of runs
-- Better error messages (Catch MessageError)
+- Allow rerunning of past benchmarks (by caching or rebuilding them)

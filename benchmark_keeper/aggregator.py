@@ -5,6 +5,7 @@ from abc import ABC, abstractmethod
 from functools import reduce
 from benchmark_keeper import BenchmarkResult
 
+
 class Aggregator(ABC):
     @abstractmethod
     def aggregate(self, results: List[Mapping[str, BenchmarkResult]]) -> List[float]:
@@ -24,12 +25,12 @@ class Aggregator(ABC):
         Returns the unit of the aggregated metrics.
         Defaults to "unit".
         This can be overridden by subclasses to provide specific units.
-        
+
         Returns:
             str: The unit of the aggregated metrics.
         """
         return "unit"
-    
+
     def lower_is_better(self) -> bool:
         """
         Indicates whether lower values are better for the aggregated metrics.
@@ -39,17 +40,20 @@ class Aggregator(ABC):
             bool: True if lower values are better, False otherwise.
         """
         return True
-    
+
+
 class IndependentAggregator(Aggregator):
     """
     Aggregates benchmark results from multiple runs independently.
     """
+
     def __init__(self, agg_func: Callable[[Mapping[str, BenchmarkResult]], float]):
         self.agg_func = agg_func
 
     def aggregate(self, results: List[Mapping[str, BenchmarkResult]]) -> List[float]:
         return list(map(self.agg_func, results))
-    
+
+
 class RankingAggregator(Aggregator):
     """
     Aggregates benchmark results from multiple runs by ranking them.
@@ -58,34 +62,45 @@ class RankingAggregator(Aggregator):
     def aggregate(self, results: List[Mapping[str, BenchmarkResult]]) -> List[float]:
         score = [0.0] * len(results)
 
-        common_benchmarks = reduce(lambda x, y: x.intersection(y), [set(res.keys()) for res in results])
+        common_benchmarks = reduce(
+            lambda x, y: x.intersection(y), [set(res.keys()) for res in results]
+        )
         if not common_benchmarks:
             return score
 
         for bench in common_benchmarks:
-            sr = sorted(list(range(len(results))), key=lambda x: results[x][bench].target)
+            sr = sorted(
+                list(range(len(results))), key=lambda x: results[x][bench].target
+            )
             for rank, idx in enumerate(sr):
-                score[idx] += rank # Could square this to change weighting
+                score[idx] += rank  # Could square this to change weighting
 
         # Normalize scores with len(results)
         for i in range(len(score)):
             score[i] /= len(common_benchmarks)
-        
+
         return score
-    
+
     def unit(self):
         return "mean rank"
 
 
-
 # Configurable presets
+
 
 def configure_ranking_agg():
     return RankingAggregator()
 
-aggregator_presets: Mapping[str, Callable[..., Aggregator]] = {
+
+aggregator_presets: Dict[str, Callable[..., Aggregator]] = {
     "ranking": configure_ranking_agg,
-    "mean": lambda: IndependentAggregator(lambda x: sum(map(lambda y: y.target, x.values()))/len(x)),
+    "mean": lambda: IndependentAggregator(
+        lambda x: sum(map(lambda y: y.target, x.values())) / len(x)
+    ),
 }
 
 DEFAULT_AGGREGATOR = "mean"
+
+
+def register_aggregator(agg: Aggregator, name: str):
+    aggregator_presets[name] = lambda: agg

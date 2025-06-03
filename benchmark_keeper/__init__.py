@@ -19,21 +19,6 @@ REPORT_FILE = "report.yml"
 LOCAL_CONFIG = "local_config.yml"
 REPO_CONFIG = "repo_config.yml"
 
-if sys.version_info >= (3, 8):
-    from importlib import metadata as importlib_metadata
-else:
-    import importlib_metadata
-
-
-def get_version() -> str:
-    try:
-        return importlib_metadata.version(__name__)
-    except importlib_metadata.PackageNotFoundError:  # pragma: no cover
-        return "unknown"
-
-
-version: str = get_version()
-
 app = typer.Typer(
     name="benchmark-keeper",
     help="Simple tracking of benchmark results across git commits",
@@ -51,6 +36,10 @@ class Color(str, Enum):
     green = "green"
 
 
+def print_error(error: str, message: str = ""):
+    console.print(f"[{Color.red}]{error}[/{Color.red}] {message}")
+
+
 class LocalConfig(BaseModel):
     machine_name: str
     active_experiment: str | None
@@ -65,6 +54,7 @@ class Experiment(BaseModel):
     build_script: str | None = None
     test_script: str | None = None
     benchmark_script: str
+    watch_files: List[str] = []
 
 
 class RepoConfig(BaseModel):
@@ -184,6 +174,7 @@ class BenchmarkRun(BaseModel):
     experiment_version: int
     machine: str
     benchmarks: Mapping[str, BenchmarkResult]
+    file_digest: str = ""
 
 
 class Report(BaseModel):

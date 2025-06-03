@@ -22,7 +22,7 @@ Repository = "https://github.com/lcjconte/benchmark-keeper.git"
 
 [tool.poetry.scripts]
 # Entry points for the package https://python-poetry.org/docs/pyproject/#scripts
-"benchmark-keeper" = "benchmark_keeper.__main__:app"
+"benchmark-keeper" = "benchmark_keeper.__main__:main"
 
 [tool.poetry.dependencies]
 python = "^3.10"
@@ -31,6 +31,9 @@ typer = {extras = ["all"], version = "^0.15.3"}
 rich = "^10.14.0"
 pydantic = "^2.11.5"
 pyyaml = "^6.0.2"
+
+[tool.poetry.group.dev.dependencies]
+black = "^25.1.0"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

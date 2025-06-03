@@ -4,6 +4,7 @@ from benchmark_keeper import app, console, Color, get_config, AppConfig
 import typer
 import subprocess
 
+
 @app.command(name="init")
 def init() -> None:
     """Inits in current repository"""
